@@ -1,0 +1,1 @@
+start .\nwjs\baidubridge.exe .\src\
