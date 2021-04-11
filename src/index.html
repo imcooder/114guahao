@@ -120,9 +120,13 @@
                 <div class="flex-h">
                     <span class="input-group-addon form_header">
                         科室Id
-                    </span>
-                    <input class="form-control" list="kefu-report-list-source-type" ng-model="viewData.mainData.departmentId" placeholder="" type="text">
-                    </input>
+                    </span>                    
+                    <select class="form-control" list="kefu-report-list-source-type" ng-model="viewData.mainData.departmentId" placeholder=""
+                        type="text" ng-options="item.code as item.displayName for item in viewData.mainData.deptList">
+                    </select>
+                    <div class="btn btn-primary" ng-click="onReloadDeptList()" ng-disabled="viewData.mainData.cookie ==''">
+                        刷新
+                    </div>
                 </div>
                 <div class="flex-h">
                     <span class="input-group-addon form_header">
@@ -135,8 +139,11 @@
                     <span class="input-group-addon form_header">
                         患者Id
                     </span>
-                    <select class="form-control" list="kefu-report-list-source-type" ng-model="viewData.mainData.patientId" placeholder="" type="text" ng-options="item.id as item.name for item in viewData.patientList">
+                    <select class="form-control" list="kefu-report-list-source-type" ng-model="viewData.mainData.patientId" placeholder="" type="text" ng-options="item.cardNo as item.displayName for item in viewData.mainData.patientList">
                     </select>
+                    <div class="btn btn-primary" ng-click="onReloadPatientList()" ng-disabled="viewData.mainData.cookie ==''">
+                        刷新 
+                    </div>
                 </div>
                 <div class="flex-h">
                     <span class="input-group-addon form_header">

@@ -9,6 +9,16 @@
 
 当前把项目提交出来  看114网站已经调整 域名修改了 因此代码当前可能不work 后续进行改进
 
+## 修复进展
+* 自动登陆 -- todo
+* 获取病人列表 -- done
+* 医院列表 -- doing
+* 获取医院科室信息 -- done
+* 获取科室值班信息 -- doing
+* 验证cookie有效性 -- done
+* 可是医生抓取 -- todo，未放号之前 无法获取到医生信息，抢号又需要提供医生信息
+
+
 ## 使用
 * nwjs目录为node webkit 文件太大不能完全上传 可以去https://nwjs.io/下载
 * luanchNW.bat window上运行
