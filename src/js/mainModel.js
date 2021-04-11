@@ -3,7 +3,7 @@
  * @author
  */
 /* globals app, $, _, angular,util,connectService */
-app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadService, appState, apiModel) {
+app.service('mainModel', function ($q, $http, util, URLS, ERRORCODE, uploadService, appState, apiModel) {
     var mkdirp = require('mkdirp');
     var fs = require('fs');
     var logDir = appState.tmpDir + '/114/log';
@@ -22,7 +22,7 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
         isCommiting: false,
         commitProgress: 0,
         cookieStatus: '',
-        cookie: 'SESSION_COOKIE=3cab1829cea36bdbceb27f7e; Hm_lvt_bc7eaca5ef5a22b54dd6ca44a23988fa=1474767806,1474769522,1476579903,1476591163; Hm_lpvt_bc7eaca5ef5a22b54dd6ca44a23988fa=1476595884; JSESSIONID=6D92BAAA195FE45263B73DA438A02FAC; SESSION_COOKIE=3cab1829cea36bdbceb27f7e; Hm_lvt_bc7eaca5ef5a22b54dd6ca44a23988fa=1474767806,1474769522,1476579903,1476591163; Hm_lpvt_bc7eaca5ef5a22b54dd6ca44a23988fa=1476600780; JSESSIONID=78405A0EEAD3B2BA701A82150FE08FB5',
+        cookie: '',
         hospitalId: '122', //广安门中医院
         departmentId: '', //科室id
         patientId: '', //患者id
@@ -39,10 +39,12 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
         querySessionTimer: null,
         confirmStatus: '',
         smsStatus: {},
+        patientList: [],
+        deptList: [],
     };
     var model = {
         mainData: mainData,
-        init: function() {
+        init: function () {
             console.log('mainModel.init');
             var self = this;
             self.mainData.dutyMap = {};
@@ -55,20 +57,24 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
                 self.mainData.dutyMap = {};
             }
             console.log('dutyMap:', self.mainData.dutyMap);
-            self.startDutyTimer(500);
+            // self.startDutyTimer(500);
             self.rewriteConsole();
+            self.checkStatus();
+            self.reloadDeptList().catch(err => {
+
+            });
         },
-        reloadList: function() {
+        reloadList: function () {
             mainData.listData.length = 0;
             mainData.mapData = {};
             var self = this;
             var p = util.http({
                 url: URLS.list,
-            }).then(function(res) {
+            }).then(function (res) {
                 console.log('reload success', res);
                 if (!res.data.status) {
                     if (angular.isArray(res.data.data)) {
-                        res.data.data.forEach(function(item) {
+                        res.data.data.forEach(function (item) {
                             var tag = item.tag || '';
                             item.tag = tag.split('|');
                             var id = item['id'];
@@ -84,25 +90,247 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
                     console.log(mainData.listData);
                     console.log(mainData.mapData);
                 }
-            }).catch(function(err) {
+            }).catch(function (err) {
                 console.error('reload failed');
             });
             return p;
         },
-        getItem: function(id) {
+        checkStatus: function () {
+            console.log('check_status');
+            var self = this;
+            var opt = {
+                headers: {}
+            };
+            opt.method = 'GET';
+            opt.cookie = self.mainData.cookie;
+            opt.host = URLS.host;
+            opt.referer = 'https://www.114yygh.com/';
+            opt.userAgent = URLS.userAgent;
+            opt['content-type'] = 'application/json;charset=UTF-8';
+            opt.headers['Request-Source'] = 'PC';
+            opt.url = util.format(URLS.status, {
+                time: util.now()
+            });
+            console.log('check_status opt:', opt);
+            return apiModel.http(opt).then(res => {
+                console.log('check_status result:', res);                
+                if (res.resCode === 0) {
+                    return;
+                } else if (res.resCode == 102) {
+                    console.log('check_status:用户未登陆');
+                    mainData.cookieStatus = '登陆状态错误';
+                    throw new Error(ERRORCODE.E_NEED_LOGIN);
+                } else {
+                    console.error('check_status error:', res);
+                    throw new Error(res.msg);
+                }
+            }).catch(err => {
+                console.error('check_status failed:', err);
+                var res = {
+                    status: -1,
+                    msg: '错误'
+                };
+                try {
+                    res.status = err.status || ERRORCODE.E_UNKNOWN,
+                        res.msg = err.msg || '错误'
+                } catch (e) {
+                    console.error('error:', e);
+                }
+                throw err;
+            });
+        },
+        reloadPatientList: function () {
+            console.log('reload_patient');
+            var self = this;
+            var opt = {
+                headers: {}
+            };
+            opt.method = 'GET';
+            opt.cookie = self.mainData.cookie;
+            opt.host = URLS.host;
+            opt.referer = 'https://www.114yygh.com/personal/patient';
+            opt['content-type'] = 'application/json;charset=UTF-8';
+            opt.headers['Request-Source'] = 'PC';
+            opt.url = util.format(URLS.patientList, {
+                time: util.now()
+            });
+            console.log('reload_patient opt:', opt);
+            mainData.patientList = [];
+            var p = new Promise(function (resolve, reject) {
+                apiModel.http(opt).then(function (res) {
+                    console.log('reload_patient result:', res);
+                    if (res.resCode === 0) {
+                        // success
+                        if (res.data.list && res.data.list.length) {
+                            res.data.list.forEach(item => {
+                                var patientItem = {
+                                    displayName: item.patientName,
+                                    phone: item.phone || '',
+                                    cardNo: item.idCardNo,
+                                    cardType: item.idCardType,
+                                    socialCardId: '',
+                                    cardList: []
+                                };
+                                if (item.cardList && item.cardList.length) {
+                                    item.cardList.forEach(card => {
+                                        var cardData = {
+                                            cardNo: card.cardNo,
+                                            cardType: card.cardType, //SOCIAL_SECURITY,IDENTITY_CARD
+                                            medicareType: card.medicareType //MEDICARE_CARD, SELF_PAY_CARD
+                                        };
+                                        if (cardData.cardType === 'SOCIAL_SECURITY') {
+                                            patientItem.socialCardId = cardData.cardNo;
+                                        }
+                                        patientItem.cardList.push(cardData);
+                                    });
+                                }
+                                mainData.patientList.push(patientItem);
+                            });
+                        }
+                        console.log('patient list:', mainData.patientList);
+                        resolve();
+                        return;
+                    } else if (res.resCode == 102) {
+                        console.log('用户未登陆');
+                        mainData.cookieStatus = '登陆状态错误';
+                        reject({
+                            status: ERRORCODE.E_NEED_LOGIN,
+                            msg: res.msg || '用户未登陆'
+                        });
+                        return;
+                    } else {
+                        console.error('reload_patient error:', res);
+                        reject({
+                            status: ERRORCODE.E_UNKNOWN,
+                            msg: res.msg || '错误'
+                        });
+                        return;
+                    }
+                }).catch(function (err) {
+                    console.error('getDuty failed:', err);
+                    var res = {
+                        status: -1,
+                        msg: '错误'
+                    };
+                    try {
+                        res.status = err.status || ERRORCODE.E_UNKNOWN,
+                            res.msg = err.msg || '错误'
+                    } catch (e) {
+                        console.error('error:', e);
+                    }
+                    reject(res);
+                    return;
+                });
+            });
+            return p;
+        },
+        reloadDeptList: function () {
+            console.log('reload_dept');
+            var self = this;
+            const t = util.now();
+            const hospitalId = self.mainData.hospitalId;
+            var data = {};
+            data.hospitalId = hospitalId;
+            data.dutyCode = 1;
+            data.dutyDate = self.mainData.dutyDate;
+            var opt = {
+                headers: {}
+            };
+            opt.method = 'GET';
+            // opt.cookie = self.mainData.cookie; // 科室信息不需要登陆验证
+            opt.host = URLS.host;
+            // opt.headers.origin = 'http://www.bjguahao.gov.cn';
+            opt['content-type'] = 'application/json;charset=UTF-8';
+            opt.headers['Request-Source'] = 'PC';
+            opt.userAgent = URLS.userAgent;
+            //apiModel.http(opt);
+            opt.url = util.format(URLS.deptList, {
+                time: t,
+                hospitalId: hospitalId
+            });
+            opt.referer = util.format(URLS.deptListReferer, {
+                hospitalId: hospitalId,
+                time: t
+            });
+            console.log('reload_dept opt:', opt);
+            mainData.deptList = [];
+            var p = new Promise(function (resolve, reject) {
+                apiModel.http(opt).then(function (res) {
+                    console.log('reload_dept result:', res);
+                    if (res.resCode === 0) {
+                        // success
+                        mainData.deptList = [];
+                        if (res.data.list && res.data.list.length > 0) {
+                            res.data.list.forEach(function (item) {
+                                const name = item.name;
+                                const deptCode = item.code;
+                                if (!item.subList || item.subList.length === 0) {
+                                    return;
+                                }
+                                const subList = item.subList;
+                                subList.forEach(subItem => {
+                                    const code = subItem.code;
+                                    var deptItemData = {};
+                                    deptItemData.displayName = name + '-' + subItem.name;
+                                    deptItemData.deptCode = subItem.dept1Code || deptCode;
+                                    deptItemData.hotDept = subItem.hotDept;
+                                    deptItemData.code = code;
+                                    mainData.deptList.push(deptItemData);
+                                });
+                            });
+                        }
+                        console.log('reload_dept size:', mainData.deptList.length);
+                        console.log('deptList:', mainData.deptList);
+                        resolve();
+                        return;
+                    } else if (res.resCode == 102) {
+                        console.log('用户未登陆');
+                        mainData.cookieStatus = '登陆状态错误';
+                        reject({
+                            status: ERRORCODE.E_NEED_LOGIN,
+                            msg: res.msg || '用户未登陆'
+                        });
+                        return;
+                    } else {
+                        console.error('reload_patient error:', res);
+                        reject({
+                            status: ERRORCODE.E_UNKNOWN,
+                            msg: res.msg || '错误'
+                        });
+                        return;
+                    }
+                }).catch(function (err) {
+                    console.error('getDuty failed:', err);
+                    var res = {
+                        status: -1,
+                        msg: '错误'
+                    };
+                    try {
+                        res.status = err.status || ERRORCODE.E_UNKNOWN,
+                            res.msg = err.msg || '错误'
+                    } catch (e) {
+                        console.error('error:', e);
+                    }
+                    reject(res);
+                    return;
+                });
+            });
+            return p;
+        },
+        getItem: function (id) {
             if (!mainData.mapData[id]) {
                 return false;
             }
             return mainData.mapData[id];
         },
-        sort: function() {
-            mainData.listData.sort(function(a, b) {
+        sort: function () {
+            mainData.listData.sort(function (a, b) {
                 var timeA = a.time || a.ctime || 0;
                 var timeB = b.time || b.ctime || 0;
                 return timeB - timeA;
             });
         },
-        updateDutyStatus: function(input) {
+        updateDutyStatus: function (input) {
             //console.debug('updateDutyStatus:', input);
             var self = this;
             var hospitalId = input.hospitalId || '';
@@ -119,14 +347,14 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
             }
             self.flushDutyDate();
         },
-        getSmsStatus: function(key) {
+        getSmsStatus: function (key) {
             var self = this;
             if (!self.mainData.smsStatus.hasOwnProperty(key)) {
                 return false;
             }
             return self.mainData.smsStatus[key];
         },
-        updateSmsStatus: function(key, value) {
+        updateSmsStatus: function (key, value) {
             var self = this;
             if (!key) {
                 return self;
@@ -134,7 +362,7 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
             self.mainData.smsStatus[key] = value;
             return self;
         },
-        getDutyStatus: function(input) {
+        getDutyStatus: function (input) {
             var self = this;
             var hospitalId = input.hospitalId || '';
             var departmentId = input.departmentId || '';
@@ -149,7 +377,7 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
             }
             return self.mainData.dutyMap[key];
         },
-        getDuty: function() {
+        getDuty: function () {
             console.log('getDuty');
             var self = this;
             var data = {};
@@ -170,14 +398,14 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
             opt['data'] = data;
             //apiModel.http(opt);
             opt.url = URLS.duty;
-            var p = new Promise(function(resolve, reject) {
-                apiModel.http(opt).then(function(res) {
+            var p = new Promise(function (resolve, reject) {
+                apiModel.http(opt).then(function (res) {
                     console.log('getDuty success:', res);
                     mainData.cookieStatus = '登陆状态正确';
                     if (res.code == 200) {
                         // success
                         if (res.data) {
-                            res.data.forEach(function(item) {
+                            res.data.forEach(function (item) {
                                 var dutySourceId = item.dutySourceId || '';
                                 var doctorName = item.doctorName || '';
                                 var dutySourceStatus = item.dutySourceStatus || 0;
@@ -210,7 +438,7 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
                         });
                         return;
                     }
-                }).catch(function(err) {
+                }).catch(function (err) {
                     console.error('getDuty failed:', err);
                     var res = {
                         status: -1,
@@ -228,10 +456,10 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
             });
             return p;
         },
-        sendVCode: function() {
+        sendVCode: function () {
             console.log('sendVCode');
             var self = this;
-            var p = new Promise(function(resolve, reject) {
+            var p = new Promise(function (resolve, reject) {
                 var doctorId = self.mainData.doctorId;
                 var dutySourceId = self.mainData.dutySourceId;
                 var departmentId = self.mainData.departmentId;
@@ -263,7 +491,7 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
                 opt.data = [];
                 opt.url = URLS.sendVCode;
                 console.debug('opt:', opt);
-                apiModel.http(opt).then(function(res) {
+                apiModel.http(opt).then(function (res) {
                     console.log('sendVCode return:', res);
                     mainData.cookieStatus = '登陆状态正确';
                     if (res.code == 200) {
@@ -287,7 +515,7 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
                         });
                         return;
                     }
-                }).catch(function(err) {
+                }).catch(function (err) {
                     console.error('验证码网络失败');
                     reject({
                         status: ERRORCODE.E_NETWORKERROR,
@@ -297,10 +525,10 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
             });
             return p;
         },
-        confirm: function() {
+        confirm: function () {
             console.log('confirm');
             var self = this;
-            var p = new Promise(function(resolve, reject) {
+            var p = new Promise(function (resolve, reject) {
                 var data = {};
                 data.doctorId = self.mainData.doctorId;
                 data.dutySourceId = self.mainData.dutySourceId;
@@ -341,7 +569,7 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
                 opt.data = data;
                 opt.url = URLS.confirm;
                 console.debug('opt:', opt);
-                apiModel.http(opt).then(function(res) {
+                apiModel.http(opt).then(function (res) {
                     console.log('confirm return:', res);
                     mainData.cookieStatus = '登陆状态正确';
                     if (res.code == 200) {
@@ -386,7 +614,7 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
                         });
                         return;
                     }
-                }).catch(function(err) {
+                }).catch(function (err) {
                     console.error('confirm:网络失败');
                     reject({
                         status: ERRORCODE.E_NETWORKERROR,
@@ -396,31 +624,31 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
             });
             return p;
         },
-        processNext: function() {
+        processNext: function () {
             console.debug('processNext');
         },
-        start: function() {
+        start: function () {
             console.debug('start');
             var self = this;
             var p = self.getDuty();
-            p.then(function(res) {
+            p.then(function (res) {
                 console.log("getDuty success");
                 mainData.commitProgress = 100;
                 //alert('添加成功');
-            }).catch(function(e) {
+            }).catch(function (e) {
                 console.log("getDuty failed:", e);
                 mainData.isCommiting = false;
                 //alert('添加失败');
             });
         },
-        refreshDoctorDutyId: function() {
+        refreshDoctorDutyId: function () {
             console.debug('refreshDoctorDutyId');
         },
-        flushDutyDate: function() {
+        flushDutyDate: function () {
             var self = this;
             localStorage.setItem('duty_data', JSON.stringify(self.mainData.dutyMap));
         },
-        checkDuty: function() {
+        checkDuty: function () {
             console.debug('checkDuty');
             var self = this;
             var input = {
@@ -442,34 +670,34 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
             }
             checkDuty();
             util.trigger('doctor_duty_changed');
-            self.getDuty().then(function() {
+            self.getDuty().then(function () {
                 checkDuty();
-            }).catch(function(err) {
+            }).catch(function (err) {
                 console.debug('获取值班信息失败:', err);
             });
             return;
         },
-        startDutyTimer: function(nextTime = 3000) {
+        startDutyTimer: function (nextTime = 3000) {
             var self = this;
             self.stopDutyTimer();
-            self.querySessionTimer = setInterval(function() {
+            self.querySessionTimer = setInterval(function () {
                 self.checkDuty();
             }, nextTime);
             return this;
         },
-        stopDutyTimer: function() {
+        stopDutyTimer: function () {
             if (this.querySessionTimer) {
                 clearInterval(this.querySessionTimer);
                 this.querySessionTimer = null;
             }
         },
-        rewriteConsole: function() {
+        rewriteConsole: function () {
             var methods = ['log', 'warn', 'error', 'info'];
             mkdirp.sync(logDir);
             var fd = logFileFd = fs.openSync(logFile, 'a');
-            methods.forEach(function(name) {
+            methods.forEach(function (name) {
                 var old = window.console[name];
-                var fn = function() {
+                var fn = function () {
                     old.apply(window.console, arguments);
                     var logData = '';
                     for (var i = 0; i < arguments.length; i++) {
@@ -500,8 +728,8 @@ app.service('mainModel', function($q, $http, util, URLS, ERRORCODE, uploadServic
             });
         },
     };
-    util.on('deviceready', function() {})
-    util.on('doctor_duty_changed', function() {
+    util.on('deviceready', function () { })
+    util.on('doctor_duty_changed', function () {
         console.debug('doctor_duty_changed');
     });
     return model;

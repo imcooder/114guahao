@@ -32,6 +32,7 @@ app.controller('mainController', function($scope, $timeout, $http, mainModel, ut
         vcode: "",
         isModifying: false,
         patientList: PATIENT,
+        deptList: mainModel.mainData.deptList
     };
     $scope.mainModel = mainModel;
     var mainData = $scope.mainData = mainModel.mainData;
@@ -146,6 +147,38 @@ app.controller('mainController', function($scope, $timeout, $http, mainModel, ut
         });
         util.requireUpdateUI();
     };
+    $scope.onReloadPatientList = function () {
+        console.debug('reloadPatient');
+        mainData.confirmStatus = 'doing';
+        mainModel.reloadPatientList().then(function() {
+            console.log('reload_patient success');
+            util.requireUpdateUI();
+        }).catch(function(err) {
+            console.log('reload_patient failed:', err);
+            if (typeof err == 'number') {
+                mainData.confirmStatus = err;
+            } else if (typeof err == 'object') {
+                mainData.confirmStatus = err.msg || '错误';
+            }
+            util.requireUpdateUI();
+        });
+    };
+    $scope.onReloadDeptList = function () {
+        console.debug('reloadDept');
+        // mainData.confirmStatus = 'doing';
+        mainModel.reloadDeptList().then(function () {
+            console.log('reload_dept success');
+            util.requireUpdateUI();
+        }).catch(function (err) {
+            console.log('reload_dept failed:', err);
+            if (typeof err == 'number') {
+                mainData.confirmStatus = err;
+            } else if (typeof err == 'object') {
+                mainData.confirmStatus = err.msg || '错误';
+            }
+            util.requireUpdateUI();
+        });
+    };
 
     function sendVCode() {
         mainData.vcodeStatus = 'doing';
@@ -195,6 +228,10 @@ app.controller('mainController', function($scope, $timeout, $http, mainModel, ut
         }
         return true;
     };
+    $scope.$watch('mainData.departmentId', function () {
+        console.log('departmentId changed:', mainData.departmentId);
+        onBaseInfoChanged();
+    });
     $scope.$watch('mainData.dutyDate', function() {
         console.log('dutyDate changed:', mainData.dutyDate);
         onBaseInfoChanged();
@@ -209,6 +246,9 @@ app.controller('mainController', function($scope, $timeout, $http, mainModel, ut
     });
     $scope.$watch('mainData.hospitalId', function() {
         console.log('hospitalId changed:', mainData.hospitalId);
+        mainModel.reloadDeptList().catch(err => {
+
+        });
         onBaseInfoChanged();
     });
     $scope.$watch('mainData.cookie', function() {

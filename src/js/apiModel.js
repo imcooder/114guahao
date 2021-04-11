@@ -16,13 +16,13 @@ app.service('apiModel', function($q, $http, URLS, util, ERRORCODE) {
             logId = logId || util.uuid.generate().replace(/-/g, '');
             opt.timeout = timeoutDef.promise;
             opt.responseType = 'json';
-            if (!opt['headers']) {
+            if (!opt.headers) {
                 opt.headers = {
-                    'SaiyaLogID': logId,
+                    'logid': logId,
                 };
             }
-            if (opt['logid']) {
-                opt.headers['SaiyaLogID'] = opt['logid'];
+            if (opt.logid) {
+                opt.headers.logid = opt.logid;
             }
             opt.transformRequest = function(obj) {
                 var str = [];
@@ -30,7 +30,7 @@ app.service('apiModel', function($q, $http, URLS, util, ERRORCODE) {
                     str.push(encodeURIComponent(p) + "=" + encodeURIComponent(obj[p]));
                 }
                 return str.join("&");
-            }
+            };
             if (opt['content-type']) {
                 opt.headers['Content-Type'] = opt['content-type'];
                 delete opt['content-type'];
@@ -50,6 +50,10 @@ app.service('apiModel', function($q, $http, URLS, util, ERRORCODE) {
             if (opt.referer) {
                 opt.headers['xxx-Referer'] = opt.referer;
                 delete opt.referer;
+            }
+            if (opt.userAgent) {
+                opt.headers['xxx-User-Agent'] = opt.userAgent;
+                delete opt.userAgent;
             }
             var start = Date.now();
             var req = $http(opt);

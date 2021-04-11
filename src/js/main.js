@@ -16,11 +16,17 @@ var app = angular.module('114guahao', ['ui.bootstrap']);
     };
     var DATA = {
         URLS: {
+            host: 'www.114yygh.com',
+            status: 'https://www.114yygh.com/web/user/real-name/status?_time=#{now}',
             duty: 'http://www.bjguahao.gov.cn/dpt/partduty.htm',
+            patientList: 'https://www.114yygh.com/web/patient/list?_time=#{time}&showType=USER_CENTER',
+            deptList: 'https://www.114yygh.com/web/department/hos/list?_time=#{time}&hosCode=#{hospitalId}',
+            deptListReferer: 'https://www.114yygh.com/hospital/#{hospitalId}/home',
             dutyReferer: 'http://www.bjguahao.gov.cn/dpt/appoint/#{hospitalId}-#{departmentId}.htm',
             sendVCode: 'http://www.bjguahao.gov.cn/v/sendorder.htm',
             vcodeReferer: 'http://www.bjguahao.gov.cn/order/confirm/#{hospitalId}-#{departmentId}-#{doctorId}-#{dutySourceId}.htm',
             confirm: 'http://www.bjguahao.gov.cn/order/confirm.htm',
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36 Edg/89.0.774.75'
         },
         PATIENT: [
             {
@@ -30,37 +36,16 @@ var app = angular.module('114guahao', ['ui.bootstrap']);
         ],
         /* eslint-enable */
         ERRORCODE: {
-            // 服务器定义 不可修改
-            E_OK: 0,
-            E_OOM: 1,
-            E_SYS_ERROR: 2,
-            E_DATA_ERROR: 3,
-            E_DATA_INCOMPLETE: 4,
-            E_DATA_OVERFLOW: 5,
-            E_CONF_ERROR: 6,
-            E_NETWORKERROR: 7,
-            E_UNKNOWN: 8,
-            E_RE_LOGIN: 9,
-            E_MULTI_LOGIN: 10,
-            E_SAIYA_ALL: 11,
-            // 自定义
-            E_BAD_JSON: 12,
-            E_HANDSHAKE_ERROR: 13,
-            E_TIMEOUT: 14,
-            E_CANCEL: 15,
-            E_LOGOUT: 16,
-            E_NO_UPDATE: 17,
-            E_NORMAL_ERROR: 18,
-            E_FILE_NOT_EXIST: 19,
-            E_FILE_WRITE_ERROR: 20,
-            E_FILE_DELETE_ERROR: 21,
-            E_FILE_EXIST: 22,
-            E_NEED_LOGIN: 23,
-            E_ACCOUNT_INVALID: 24,
-            E_SERVER_CONDIG_ERROR: 25,
-            E_INVALID_PARAM: 26,
-            E_BAD_SMS: 27,
-            E_403: 403,
+            E_OK: 'ok',
+            E_NETWORKERROR: 'bad_network',
+            E_UNKNOWN: 'unknown',
+            E_BAD_JSON: 'invalid_json',
+            E_TIMEOUT: 'timeout',
+            E_CANCEL: 'cancel',
+            E_NEED_LOGIN: 'need_login',
+            E_ACCOUNT_INVALID: 'account_invalid',
+            E_INVALID_PARAM: 'invalid_param',
+            E_BAD_SMS: 'bad_sms'
         }
     };
 
