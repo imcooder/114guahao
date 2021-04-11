@@ -98,6 +98,9 @@ app.factory('util', function ($http, $timeout) {
                 }
             });
         },
+        now: function () {
+            return new Date().getTime();
+        },
 
         /**
          * 根据路径返回文件名

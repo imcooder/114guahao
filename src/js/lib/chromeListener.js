@@ -1,6 +1,6 @@
 /**
  * @file 针对网络请求等做全局性的修改
- * @author fengweifeng
+ * @author
  *
  */
 /* globals app, $, _, chrome,_appEnv, cpp, CC */
@@ -40,6 +40,6 @@
             requestHeaders: details.requestHeaders
         };
     }, {
-        urls: ['http://*.baidu.com/*', 'https://*.baidu.com/*', 'http://*.bjguahao.gov.cn/*']
+        urls: ['http://*.baidu.com/*', 'https://*.baidu.com/*', 'http://*.bjguahao.gov.cn/*', 'https://*.114yygh.com/*', 'http://*.114yygh.com/*']
     }, ['blocking', 'requestHeaders']);
 })();
